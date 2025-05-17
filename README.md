@@ -63,3 +63,41 @@ Traditional app deployments often suffer from:
 
 ## 🛠 Folder Structure
 
+
+---
+
+## 💼 Business Use Case
+
+A startup with a web application wants to minimize manual deployment effort, reduce outages during rollout, and scale automatically with traffic.  
+This automation project allows them to push code and deploy securely to the cloud within minutes, using modern DevOps practices.
+
+---
+
+## 📈 Business Value
+
+- **Speed to Production:** Code → deployment in minutes
+- **Consistency:** Same build and deploy flow every time
+- **Security:** IAM-managed roles and encrypted image storage
+- **Efficiency:** No need for manual EC2 provisioning or SSH access
+- **Resilience:** ECS services automatically self-heal
+
+---
+
+## 🔮 Future Enhancements
+
+- [ ] Add monitoring with CloudWatch + custom dashboards
+- [ ] Integrate testing into the Jenkins pipeline
+- [ ] Implement blue/green deployment strategy
+- [ ] Auto-scale ECS services based on usage metrics
+
+---
+
+## 🤝 Connect
+
+Crafted by **[Malcolm Sesay](https://www.linkedin.com/in/malcolmsesay/)** — Let’s innovate together through automation.
+
+---
+
+## 🏷️ Tags
+
+`#DevOps` `#CI/CD` `#Jenkins` `#Terraform` `#AWS` `#ECS` `#Docker` `#CloudEngineering` `#InfrastructureAsCode`
