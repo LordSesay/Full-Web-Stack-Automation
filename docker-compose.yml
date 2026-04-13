@@ -1,0 +1,22 @@
+version: "3.9"
+
+services:
+  backend:
+    build: ./backend
+    container_name: fullstack-backend
+    environment:
+      PORT: 8080
+      CORS_ORIGIN: http://localhost:3000
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        REACT_APP_API_URL: http://localhost:8080/api/id
+    container_name: fullstack-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
