@@ -2,8 +2,8 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
-COPY package*.json ./
-RUN npm ci
+COPY package.json ./
+RUN npm install
 
 COPY . .
 ARG REACT_APP_API_URL=http://localhost:8080/api/id

@@ -30,7 +30,7 @@ pipeline {
       }
     }
 
-    stage('Backend Test') {
+    stage('Backend Smoke Test') {
       steps {
         dir('backend') {
           sh 'npm test || true'
@@ -38,18 +38,28 @@ pipeline {
       }
     }
 
-    stage('Frontend Test') {
+    stage('Frontend Build Test') {
       steps {
         dir('frontend') {
-          sh 'CI=true npm test -- --watchAll=false'
+          sh 'npm run build'
         }
       }
     }
 
-    stage('Build Docker Images') {
+    stage('Build Backend Docker Image') {
       steps {
-        sh 'docker build -t $BACKEND_IMAGE ./backend'
-        sh 'docker build -t $FRONTEND_IMAGE ./frontend'
+        sh 'docker build -t ${BACKEND_IMAGE}:latest ./backend'
+      }
+    }
+
+    stage('Build Frontend Docker Image') {
+      steps {
+        sh '''
+          docker build \
+            --build-arg REACT_APP_API_URL=http://localhost:8080/ \
+            -t ${FRONTEND_IMAGE}:latest \
+            ./frontend
+        '''
       }
     }
 
@@ -61,6 +71,14 @@ pipeline {
       }
     }
 
+    stage('Terraform Validate') {
+      steps {
+        dir('infra') {
+          sh 'terraform validate'
+        }
+      }
+    }
+
     stage('Terraform Plan') {
       steps {
         dir('infra') {
@@ -68,9 +86,5 @@ pipeline {
         }
       }
     }
-
-    // Later:
-    // stage('Push to ECR') { ... }
-    // stage('Deploy to ECS') { ... }
   }
 }

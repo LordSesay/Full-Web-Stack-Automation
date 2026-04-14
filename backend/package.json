@@ -5,12 +5,15 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "jest"
   },
   "author": "lightfeather.io",
   "license": "ISC",
   "dependencies": {
     "express": "^4.17.1",
     "uuid": "^8.3.2"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0"
   }
 }
