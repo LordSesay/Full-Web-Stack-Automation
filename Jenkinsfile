@@ -69,7 +69,7 @@ pipeline {
 
 stage('Terraform Init') {
   steps {
-    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials2']]) {
+    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
       dir('infra') {
         sh 'terraform init'
       }
@@ -87,7 +87,7 @@ stage('Terraform Validate') {
 
 stage('Terraform Plan') {
   steps {
-    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials2']]) {
+    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
       dir('infra') {
         sh 'terraform plan -no-color'
       }
@@ -97,7 +97,7 @@ stage('Terraform Plan') {
 
     stage('ECR Login') {
       steps {
-        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials2']]) {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
           sh '''
             aws ecr get-login-password --region ${AWS_REGION} \
             | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
@@ -132,7 +132,7 @@ stage('Terraform Plan') {
 
     stage('Deploy to ECS') {
       steps {
-        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials2']]) {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
           sh '''
             aws ecs update-service \
               --cluster ${ECS_CLUSTER} \
@@ -146,7 +146,7 @@ stage('Terraform Plan') {
 
     stage('Wait for ECS Stability') {
       steps {
-        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials2']]) {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
           sh '''
             aws ecs wait services-stable \
               --cluster ${ECS_CLUSTER} \
