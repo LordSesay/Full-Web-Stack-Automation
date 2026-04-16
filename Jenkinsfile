@@ -2,7 +2,11 @@ pipeline {
   agent any
 
   parameters {
-    string(name: 'AWS_ACCOUNT_ID', description: 'AWS Account ID')
+    string(
+      name: 'AWS_ACCOUNT_ID',
+      defaultValue: '767398054553',
+      description: 'AWS account ID for ECR and ECS deployment'
+    )
   }
 
   environment {
@@ -12,8 +16,8 @@ pipeline {
     BACKEND_IMAGE  = 'fullstack-backend'
     FRONTEND_IMAGE = 'fullstack-frontend'
 
-    ECR_BACKEND    = "${params.AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/fullstack-automation-backend"
-    ECR_FRONTEND   = "${params.AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/fullstack-automation-frontend"
+    ECR_BACKEND    = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/fullstack-automation-backend"
+    ECR_FRONTEND   = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/fullstack-automation-frontend"
 
     ECS_CLUSTER    = 'fullstack-automation-cluster'
     ECS_SERVICE    = 'fullstack-automation-service'
@@ -22,6 +26,16 @@ pipeline {
   }
 
   stages {
+    stage('Validate Parameters') {
+      steps {
+        script {
+          if (!params.AWS_ACCOUNT_ID?.trim()) {
+            error('AWS_ACCOUNT_ID parameter is empty.')
+          }
+        }
+      }
+    }
+
     stage('Backend Install') {
       steps {
         dir('backend') {
@@ -71,38 +85,30 @@ pipeline {
       }
     }
 
-stage('Terraform Init') {
-  steps {
-    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
-      dir('infra') {
-        sh 'terraform init'
-      }
-    }
-  }
-}
-
-stage('Terraform Validate') {
-  steps {
-    dir('infra') {
-      sh 'terraform validate'
-    }
-  }
-}
-
-stage('Terraform Plan') {
-  steps {
-    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
-      dir('infra') {
-        sh 'terraform plan -no-color'
-      }
-    }
-  }
-}
-
-    stage('Check ECR Repos') {
+    stage('Terraform Init') {
       steps {
         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
-          sh 'aws ecr describe-repositories --region ${AWS_REGION}'
+          dir('infra') {
+            sh 'terraform init'
+          }
+        }
+      }
+    }
+
+    stage('Terraform Validate') {
+      steps {
+        dir('infra') {
+          sh 'terraform validate'
+        }
+      }
+    }
+
+    stage('Terraform Plan') {
+      steps {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
+          dir('infra') {
+            sh 'terraform plan -no-color'
+          }
         }
       }
     }
