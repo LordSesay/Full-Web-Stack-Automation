@@ -2,7 +2,7 @@ pipeline {
   agent any
 
   parameters {
-    string(name: 'AWS_ACCOUNT_ID', defaultValue: '', description: 'AWS Account ID')
+    string(name: 'AWS_ACCOUNT_ID', description: 'AWS Account ID')
   }
 
   environment {
