@@ -95,6 +95,14 @@ stage('Terraform Plan') {
   }
 }
 
+    stage('Check ECR Repos') {
+      steps {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
+          sh 'aws ecr describe-repositories --region ${AWS_REGION}'
+        }
+      }
+    }
+
     stage('ECR Login') {
       steps {
         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
