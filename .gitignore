@@ -1,12 +1,29 @@
+# Node
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
 
 # Terraform
 .terraform/
 *.tfstate
-*.tfstate.backup
+*.tfstate.*
 *.tfvars
-.terraform.lock.hcl
+*.tfvars.json
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
 
-# Secrets
-.env
-.env.*
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
