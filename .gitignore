@@ -6,3 +6,7 @@ node_modules/
 *.tfstate.backup
 *.tfvars
 .terraform.lock.hcl
+
+# Secrets
+.env
+.env.*

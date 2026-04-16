@@ -1,15 +1,18 @@
 pipeline {
   agent any
 
+  parameters {
+    string(name: 'AWS_ACCOUNT_ID', defaultValue: '', description: 'AWS Account ID')
+  }
+
   environment {
     AWS_REGION     = 'us-east-1'
-    AWS_ACCOUNT_ID = '767398054553'
 
     BACKEND_IMAGE  = 'fullstack-backend'
     FRONTEND_IMAGE = 'fullstack-frontend'
 
-    ECR_BACKEND    = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/fullstack-automation-backend"
-    ECR_FRONTEND   = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/fullstack-automation-frontend"
+    ECR_BACKEND    = "${params.AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/fullstack-automation-backend"
+    ECR_FRONTEND   = "${params.AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/fullstack-automation-frontend"
 
     ECS_CLUSTER    = 'fullstack-automation-cluster'
     ECS_SERVICE    = 'fullstack-automation-service'
@@ -108,7 +111,7 @@ stage('Terraform Plan') {
         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
           sh '''
             aws ecr get-login-password --region ${AWS_REGION} \
-            | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
+            | docker login --username AWS --password-stdin ${params.AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
           '''
         }
       }
