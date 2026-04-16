@@ -67,33 +67,37 @@ pipeline {
       }
     }
 
-    stage('Terraform Init') {
-      steps {
-        dir('infra') {
-          sh 'terraform init'
-        }
+stage('Terraform Init') {
+  steps {
+    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials2']]) {
+      dir('infra') {
+        sh 'terraform init'
       }
     }
+  }
+}
 
-    stage('Terraform Validate') {
-      steps {
-        dir('infra') {
-          sh 'terraform validate'
-        }
-      }
+stage('Terraform Validate') {
+  steps {
+    dir('infra') {
+      sh 'terraform validate'
     }
+  }
+}
 
-    stage('Terraform Plan') {
-      steps {
-        dir('infra') {
-          sh 'terraform plan -no-color'
-        }
+stage('Terraform Plan') {
+  steps {
+    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials2']]) {
+      dir('infra') {
+        sh 'terraform plan -no-color'
       }
     }
+  }
+}
 
     stage('ECR Login') {
       steps {
-        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']]) {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials2']]) {
           sh '''
             aws ecr get-login-password --region ${AWS_REGION} \
             | docker login --username AWS --password-stdin ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com
@@ -128,7 +132,7 @@ pipeline {
 
     stage('Deploy to ECS') {
       steps {
-        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']]) {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials2']]) {
           sh '''
             aws ecs update-service \
               --cluster ${ECS_CLUSTER} \
@@ -142,7 +146,7 @@ pipeline {
 
     stage('Wait for ECS Stability') {
       steps {
-        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-creds']]) {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials2']]) {
           sh '''
             aws ecs wait services-stable \
               --cluster ${ECS_CLUSTER} \
