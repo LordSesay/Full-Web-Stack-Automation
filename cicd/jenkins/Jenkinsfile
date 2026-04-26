@@ -13,10 +13,6 @@ pipeline {
     AWS_REGION     = 'us-east-1'
     AWS_ACCOUNT_ID = "${params.AWS_ACCOUNT_ID}"
 
-    BACKEND_DIR    = 'apps/backend'
-    FRONTEND_DIR   = 'apps/frontend'
-    INFRA_DIR      = 'infra'
-
     BACKEND_IMAGE  = 'fullstack-backend'
     FRONTEND_IMAGE = 'fullstack-frontend'
 
@@ -42,7 +38,7 @@ pipeline {
 
     stage('Backend Install') {
       steps {
-        dir("${BACKEND_DIR}") {
+        dir('backend') {
           sh 'npm ci'
         }
       }
@@ -50,7 +46,7 @@ pipeline {
 
     stage('Frontend Install') {
       steps {
-        dir("${FRONTEND_DIR}") {
+        dir('frontend') {
           sh 'npm ci'
         }
       }
@@ -58,7 +54,7 @@ pipeline {
 
     stage('Backend Smoke Test') {
       steps {
-        dir("${BACKEND_DIR}") {
+        dir('backend') {
           sh 'npm test || true'
         }
       }
@@ -66,7 +62,7 @@ pipeline {
 
     stage('Frontend Build Test') {
       steps {
-        dir("${FRONTEND_DIR}") {
+        dir('frontend') {
           sh 'npm run build'
         }
       }
@@ -74,7 +70,7 @@ pipeline {
 
     stage('Build Backend Docker Image') {
       steps {
-        sh 'docker build -t ${BACKEND_IMAGE}:latest ./${BACKEND_DIR}'
+        sh 'docker build -t ${BACKEND_IMAGE}:latest ./backend'
       }
     }
 
@@ -84,7 +80,7 @@ pipeline {
           docker build \
             --build-arg REACT_APP_API_URL=/api/id \
             -t ${FRONTEND_IMAGE}:latest \
-            ./${FRONTEND_DIR}
+            ./frontend
         '''
       }
     }
@@ -92,7 +88,7 @@ pipeline {
     stage('Terraform Init') {
       steps {
         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
-          dir("${INFRA_DIR}") {
+          dir('infra') {
             sh 'terraform init'
           }
         }
@@ -101,7 +97,7 @@ pipeline {
 
     stage('Terraform Validate') {
       steps {
-        dir("${INFRA_DIR}") {
+        dir('infra') {
           sh 'terraform validate'
         }
       }
@@ -110,7 +106,7 @@ pipeline {
     stage('Terraform Plan') {
       steps {
         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
-          dir("${INFRA_DIR}") {
+          dir('infra') {
             sh 'terraform plan -no-color'
           }
         }
@@ -152,46 +148,19 @@ pipeline {
       }
     }
 
-stage('Render ECS Task Definition') {
-  steps {
-    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
-      sh '''
-        ./cicd/jenkins/ecs/render-taskdef.sh \
-          ${ECS_CLUSTER} \
-          ${ECS_SERVICE} \
-          ${ECR_BACKEND}:${IMAGE_TAG} \
-          ${ECR_FRONTEND}:${IMAGE_TAG} \
-          ${AWS_REGION}
-      '''
+    stage('Deploy to ECS') {
+      steps {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
+          sh '''
+            aws ecs update-service \
+              --cluster ${ECS_CLUSTER} \
+              --service ${ECS_SERVICE} \
+              --force-new-deployment \
+              --region ${AWS_REGION}
+          '''
+        }
+      }
     }
-  }
-}
-
-stage('Register ECS Task Definition') {
-  steps {
-    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
-      sh '''
-        ./cicd/jenkins/ecs/register-taskdef.sh ${AWS_REGION}
-      '''
-    }
-  }
-}
-
-stage('Deploy ECS Task Definition') {
-  steps {
-    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
-      sh '''
-        NEW_TASK_DEF_ARN=$(cat new-taskdef-arn.txt)
-
-        aws ecs update-service \
-          --cluster ${ECS_CLUSTER} \
-          --service ${ECS_SERVICE} \
-          --task-definition $NEW_TASK_DEF_ARN \
-          --region ${AWS_REGION}
-      '''
-    }
-  }
-}
 
     stage('Wait for ECS Stability') {
       steps {
