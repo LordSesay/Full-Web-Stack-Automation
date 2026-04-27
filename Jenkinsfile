@@ -1,11 +1,28 @@
 pipeline {
   agent any
 
+  options {
+    timestamps()
+    disableConcurrentBuilds()
+    buildDiscarder(logRotator(numToKeepStr: '20'))
+    timeout(time: 45, unit: 'MINUTES')
+  }
+
   parameters {
     string(
       name: 'AWS_ACCOUNT_ID',
       defaultValue: '767398054553',
       description: 'AWS account ID for ECR and ECS deployment'
+    )
+    booleanParam(
+      name: 'RUN_TERRAFORM_PLAN',
+      defaultValue: true,
+      description: 'Run Terraform init/validate/plan'
+    )
+    booleanParam(
+      name: 'DEPLOY',
+      defaultValue: true,
+      description: 'Push images and redeploy ECS'
     )
   }
 
@@ -20,17 +37,18 @@ pipeline {
     BACKEND_IMAGE  = 'fullstack-backend'
     FRONTEND_IMAGE = 'fullstack-frontend'
 
-    ECR_BACKEND    = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/fullstack-automation-backend"
-    ECR_FRONTEND   = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/fullstack-automation-frontend"
+    APP_NAME       = 'fullstack-automation'
+    ECR_BACKEND    = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${APP_NAME}-backend"
+    ECR_FRONTEND   = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${APP_NAME}-frontend"
 
-    ECS_CLUSTER    = 'fullstack-automation-cluster'
-    ECS_SERVICE    = 'fullstack-automation-service'
+    ECS_CLUSTER    = "${APP_NAME}-cluster"
+    ECS_SERVICE    = "${APP_NAME}-service"
 
     IMAGE_TAG      = "${env.BUILD_NUMBER}"
   }
 
   stages {
-    stage('Validate Parameters') {
+    stage('Validate Inputs') {
       steps {
         script {
           if (!params.AWS_ACCOUNT_ID?.trim()) {
@@ -89,28 +107,15 @@ pipeline {
       }
     }
 
-    stage('Terraform Init') {
+    stage('Terraform Plan') {
+      when {
+        expression { return params.RUN_TERRAFORM_PLAN }
+      }
       steps {
         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
           dir("${INFRA_DIR}") {
             sh 'terraform init'
-          }
-        }
-      }
-    }
-
-    stage('Terraform Validate') {
-      steps {
-        dir("${INFRA_DIR}") {
-          sh 'terraform validate'
-        }
-      }
-    }
-
-    stage('Terraform Plan') {
-      steps {
-        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
-          dir("${INFRA_DIR}") {
+            sh 'terraform validate'
             sh 'terraform plan -no-color'
           }
         }
@@ -118,6 +123,9 @@ pipeline {
     }
 
     stage('ECR Login') {
+      when {
+        expression { return params.DEPLOY }
+      }
       steps {
         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
           sh '''
@@ -129,6 +137,9 @@ pipeline {
     }
 
     stage('Tag Images') {
+      when {
+        expression { return params.DEPLOY }
+      }
       steps {
         sh '''
           docker tag ${BACKEND_IMAGE}:latest ${ECR_BACKEND}:latest
@@ -141,6 +152,9 @@ pipeline {
     }
 
     stage('Push Images') {
+      when {
+        expression { return params.DEPLOY }
+      }
       steps {
         sh '''
           docker push ${ECR_BACKEND}:latest
@@ -152,48 +166,27 @@ pipeline {
       }
     }
 
-stage('Render ECS Task Definition') {
-  steps {
-    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
-      sh '''
-        ./cicd/jenkins/ecs/render-taskdef.sh \
-          ${ECS_CLUSTER} \
-          ${ECS_SERVICE} \
-          ${ECR_BACKEND}:${IMAGE_TAG} \
-          ${ECR_FRONTEND}:${IMAGE_TAG} \
-          ${AWS_REGION}
-      '''
+    stage('Deploy to ECS') {
+      when {
+        expression { return params.DEPLOY }
+      }
+      steps {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
+          sh '''
+            aws ecs update-service \
+              --cluster ${ECS_CLUSTER} \
+              --service ${ECS_SERVICE} \
+              --force-new-deployment \
+              --region ${AWS_REGION}
+          '''
+        }
+      }
     }
-  }
-}
-
-stage('Register ECS Task Definition') {
-  steps {
-    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
-      sh '''
-        ./cicd/jenkins/ecs/register-taskdef.sh ${AWS_REGION}
-      '''
-    }
-  }
-}
-
-stage('Deploy ECS Task Definition') {
-  steps {
-    withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
-      sh '''
-        NEW_TASK_DEF_ARN=$(cat new-taskdef-arn.txt)
-
-        aws ecs update-service \
-          --cluster ${ECS_CLUSTER} \
-          --service ${ECS_SERVICE} \
-          --task-definition $NEW_TASK_DEF_ARN \
-          --region ${AWS_REGION}
-      '''
-    }
-  }
-}
 
     stage('Wait for ECS Stability') {
+      when {
+        expression { return params.DEPLOY }
+      }
       steps {
         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
           sh '''
@@ -212,7 +205,7 @@ stage('Deploy ECS Task Definition') {
       echo 'Pipeline completed successfully: images pushed and ECS redeployed.'
     }
     failure {
-      echo 'Pipeline failed. Check stage logs for the exact break point.'
+      echo 'Pipeline failed. Check the failed stage logs.'
     }
     always {
       sh 'docker image prune -f || true'
