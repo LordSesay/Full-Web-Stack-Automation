@@ -137,16 +137,19 @@ pipeline {
     }
 
     stage('Push Images') {
-      steps {
-        sh '''
-          docker push ${ECR_BACKEND}:latest
-          docker push ${ECR_BACKEND}:${IMAGE_TAG}
+  when {
+    expression { return params.DEPLOY }
+  }
+  steps {
+    sh '''
+      docker push ${ECR_BACKEND}:${IMAGE_TAG}
+      docker push ${ECR_FRONTEND}:${IMAGE_TAG}
 
-          docker push ${ECR_FRONTEND}:latest
-          docker push ${ECR_FRONTEND}:${IMAGE_TAG}
-        '''
-      }
-    }
+      docker push ${ECR_BACKEND}:latest
+      docker push ${ECR_FRONTEND}:latest
+    '''
+  }
+}
 
     stage('Render ECS Task Definition') {
   when {
