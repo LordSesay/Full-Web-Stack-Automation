@@ -166,17 +166,50 @@ pipeline {
       }
     }
 
-    stage('Deploy to ECS') {
+    stage('Render ECS Task Definition') {
       when {
         expression { return params.DEPLOY }
       }
       steps {
         withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
           sh '''
+            ./cicd/jenkins/ecs/render-taskdef.sh \
+              ${ECS_CLUSTER} \
+              ${ECS_SERVICE} \
+              ${ECR_BACKEND}:${IMAGE_TAG} \
+              ${ECR_FRONTEND}:${IMAGE_TAG} \
+              ${AWS_REGION}
+          '''
+        }
+      }
+    }
+
+    stage('Register ECS Task Definition') {
+      when {
+        expression { return params.DEPLOY }
+      }
+      steps {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
+          sh '''
+            ./cicd/jenkins/ecs/register-taskdef.sh ${AWS_REGION}
+          '''
+        }
+      }
+    }
+
+    stage('Deploy ECS Task Definition') {
+      when {
+        expression { return params.DEPLOY }
+      }
+      steps {
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
+          sh '''
+            NEW_TASK_DEF_ARN=$(cat new-taskdef-arn.txt)
+
             aws ecs update-service \
               --cluster ${ECS_CLUSTER} \
               --service ${ECS_SERVICE} \
-              --force-new-deployment \
+              --task-definition $NEW_TASK_DEF_ARN \
               --region ${AWS_REGION}
           '''
         }
