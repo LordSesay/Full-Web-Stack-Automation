@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import './App.css';
-import API_URL from './config';
 
 function App() {
   const [encounter, setEncounter] = useState(null);
