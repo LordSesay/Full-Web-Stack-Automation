@@ -98,12 +98,7 @@ pipeline {
 
     stage('Build Frontend Docker Image') {
       steps {
-        sh '''
-          docker build \
-            --build-arg REACT_APP_API_URL=/api/id \
-            -t ${FRONTEND_IMAGE}:latest \
-            ./${FRONTEND_DIR}
-        '''
+        sh 'docker build -t ${FRONTEND_IMAGE}:latest ./${FRONTEND_DIR}'
       }
     }
 

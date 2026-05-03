@@ -1,0 +1,106 @@
+import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import api from '../api';
+import StatusBadge from '../components/StatusBadge';
+
+function Dashboard() {
+  const [stats, setStats] = useState(null);
+  const [recent, setRecent] = useState([]);
+  const [health, setHealth] = useState(null);
+
+  useEffect(() => {
+    api.getStats().then(setStats).catch(() => {});
+    api.getEncounters('limit=5').then(d => setRecent(d.encounters || [])).catch(() => {});
+    api.getHealth().then(setHealth).catch(() => setHealth({ status: 'unreachable' }));
+  }, []);
+
+  return (
+    <div className="page">
+      <div className="page-header">
+        <h1>Dashboard</h1>
+        <Link to="/encounters/new" className="btn btn-primary">+ New Encounter</Link>
+      </div>
+
+      <div className="stat-grid">
+        <div className="stat-card">
+          <span className="stat-label">Total Encounters</span>
+          <span className="stat-value">{stats ? stats.total : '—'}</span>
+        </div>
+        <div className="stat-card accent-blue">
+          <span className="stat-label">Checked In</span>
+          <span className="stat-value">{stats ? (stats.byStatus['checked-in'] || 0) : '—'}</span>
+        </div>
+        <div className="stat-card accent-amber">
+          <span className="stat-label">In Progress</span>
+          <span className="stat-value">{stats ? (stats.byStatus['in-progress'] || 0) : '—'}</span>
+        </div>
+        <div className="stat-card accent-green">
+          <span className="stat-label">Completed</span>
+          <span className="stat-value">{stats ? (stats.byStatus['completed'] || 0) : '—'}</span>
+        </div>
+        <div className="stat-card accent-purple">
+          <span className="stat-label">Discharged</span>
+          <span className="stat-value">{stats ? (stats.byStatus['discharged'] || 0) : '—'}</span>
+        </div>
+        <div className={`stat-card ${health && health.status === 'healthy' ? 'accent-green' : 'accent-red'}`}>
+          <span className="stat-label">API Health</span>
+          <span className="stat-value">{health ? health.status : '—'}</span>
+        </div>
+      </div>
+
+      {stats && stats.total > 0 && (
+        <div className="panel">
+          <div className="panel-header">
+            <h2>Department Breakdown</h2>
+          </div>
+          <div className="dept-bars">
+            {Object.entries(stats.byDepartment).map(([dept, count]) => (
+              <div key={dept} className="dept-row">
+                <span className="dept-name">{dept}</span>
+                <div className="dept-bar-track">
+                  <div className="dept-bar-fill" style={{ width: `${Math.min((count / stats.total) * 100, 100)}%` }} />
+                </div>
+                <span className="dept-count">{count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="panel">
+        <div className="panel-header">
+          <h2>Recent Activity</h2>
+          <Link to="/encounters" className="link">View all →</Link>
+        </div>
+        {recent.length === 0 ? (
+          <p className="empty">No encounters yet. <Link to="/encounters/new">Create one</Link>.</p>
+        ) : (
+          <table>
+            <thead>
+              <tr>
+                <th>Encounter ID</th>
+                <th>Patient</th>
+                <th>Department</th>
+                <th>Status</th>
+                <th>Created</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recent.map(e => (
+                <tr key={e.encounterId}>
+                  <td><Link to={`/encounters/${e.encounterId}`} className="link">{e.encounterId}</Link></td>
+                  <td>{e.patientReference}</td>
+                  <td>{e.department}</td>
+                  <td><StatusBadge status={e.status} /></td>
+                  <td>{new Date(e.createdAt).toLocaleTimeString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default Dashboard;
