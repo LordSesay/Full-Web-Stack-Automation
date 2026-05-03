@@ -241,7 +241,8 @@ pipeline {
       echo 'Pipeline failed. Check the failed stage logs.'
     }
     always {
-      sh 'docker image prune -f || true'
+      sh 'docker system prune -af || true'
+      sh 'rm -rf ~/.npm/_cacache || true'
     }
   }
 }

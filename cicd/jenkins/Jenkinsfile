@@ -209,7 +209,8 @@ stage('Deploy ECS Task Definition') {
       echo 'Pipeline failed. Check stage logs for the exact break point.'
     }
     always {
-      sh 'docker image prune -f || true'
+      sh 'docker system prune -af || true'
+      sh 'rm -rf ~/.npm/_cacache || true'
     }
   }
 }
