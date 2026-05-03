@@ -69,7 +69,7 @@ pipeline {
     stage('Frontend Install') {
       steps {
         dir("${FRONTEND_DIR}") {
-          sh 'npm ci'
+          sh 'npm install'
         }
       }
     }
