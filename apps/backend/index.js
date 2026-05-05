@@ -14,7 +14,7 @@ app.use((req, res, next) => {
 });
 
 const encounters = [];
-const STATUS_FLOW = ['created', 'checked-in', 'in-progress', 'completed', 'discharged'];
+const STATUS_FLOW = ['created', 'checked-in', 'in-progress', 'completed', 'discharged', 'billed', 'closed'];
 const VALID_VISIT_TYPES = ['routine_checkup', 'follow_up', 'urgent_care', 'emergency', 'specialist_referral', 'lab_work'];
 const VALID_DEPARTMENTS = ['general', 'outpatient', 'inpatient', 'emergency', 'radiology', 'laboratory', 'cardiology', 'pediatrics'];
 const VALID_PRIORITIES = ['low', 'normal', 'high', 'critical'];
@@ -30,18 +30,19 @@ app.get('/health', (req, res) => {
 });
 
 app.get('/api/encounters/stats', (req, res) => {
-  const byStatus = {};
+  const stats = { total: encounters.length };
+  STATUS_FLOW.forEach(s => { stats[s] = 0; });
+
   const byDepartment = {};
   const byPriority = {};
-  STATUS_FLOW.forEach(s => { byStatus[s] = 0; });
 
   encounters.forEach(e => {
-    byStatus[e.status] = (byStatus[e.status] || 0) + 1;
+    if (stats[e.status] !== undefined) stats[e.status]++;
     byDepartment[e.department] = (byDepartment[e.department] || 0) + 1;
     byPriority[e.priority] = (byPriority[e.priority] || 0) + 1;
   });
 
-  res.json({ total: encounters.length, byStatus, byDepartment, byPriority });
+  res.json({ message: 'Encounter stats retrieved successfully', stats, byStatus: stats, byDepartment, byPriority });
 });
 
 app.get('/api/encounters/options', (req, res) => {
@@ -72,6 +73,89 @@ app.post('/api/encounters', (req, res) => {
 
   encounters.unshift(encounter);
   res.status(201).json(encounter);
+});
+
+app.get('/api/encounters/adt', (req, res) => {
+  const { status, facility_id, mrn } = req.query;
+  let results = encounters.filter(e => e.event_id);
+
+  if (status) results = results.filter(e => e.status === status);
+  if (facility_id) results = results.filter(e => e.facility_id === facility_id);
+  if (mrn) results = results.filter(e => e.mrn === mrn);
+
+  return res.json(results);
+});
+
+app.get('/api/encounters/adt/:id', (req, res) => {
+  const encounter = encounters.find(e => e.encounter_id === req.params.id);
+  if (!encounter) return res.status(404).json({ error: 'Encounter not found' });
+  return res.json(encounter);
+});
+
+app.patch('/api/encounters/adt/:id/status', (req, res) => {
+  const { status } = req.body;
+
+  if (!STATUS_FLOW.includes(status)) {
+    return res.status(400).json({ error: 'Invalid status', valid_statuses: STATUS_FLOW });
+  }
+
+  const encounter = encounters.find(e => e.encounter_id === req.params.id);
+  if (!encounter) return res.status(404).json({ error: 'Encounter not found' });
+
+  encounter.status = status;
+  encounter.updatedAt = new Date().toISOString();
+  encounter.statusHistory.push({ status, timestamp: encounter.updatedAt, source: 'system-update' });
+
+  return res.json({ message: 'Status updated', encounter_id: req.params.id, new_status: status });
+});
+
+app.post('/api/encounters/from-adt', (req, res) => {
+  const { event_type, event_id, source_system, patient, visit } = req.body;
+
+  if (event_type !== 'ADT_A04') {
+    return res.status(400).json({ error: 'Unsupported ADT event type', supported_event: 'ADT_A04' });
+  }
+
+  if (!event_id || !patient?.mrn || !visit?.epic_csn) {
+    return res.status(400).json({ error: 'Missing required ADT fields' });
+  }
+
+  const existing = encounters.find(e => e.event_id === event_id);
+  if (existing) {
+    return res.status(200).json({
+      message: 'Duplicate ADT event detected. Returning existing encounter.',
+      encounter_id: existing.encounter_id,
+      status: existing.status,
+      idempotent: true
+    });
+  }
+
+  const encounter_id = `ENC-${Date.now()}`;
+  const now = new Date().toISOString();
+
+  encounters.unshift({
+    encounter_id,
+    event_id,
+    event_type,
+    source_system,
+    mrn: patient.mrn,
+    dob: patient.dob,
+    sex: patient.sex,
+    epic_csn: visit.epic_csn,
+    facility_id: visit.facility_id,
+    visit_type: visit.visit_type,
+    status: 'created',
+    createdAt: now,
+    updatedAt: now,
+    statusHistory: [{ status: 'created', timestamp: now, source: event_type }]
+  });
+
+  return res.status(201).json({
+    message: 'Encounter created from ADT event',
+    encounter_id,
+    status: 'created',
+    idempotent: false
+  });
 });
 
 app.get('/api/encounters', (req, res) => {

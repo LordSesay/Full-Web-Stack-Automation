@@ -5,11 +5,12 @@ import StatusBadge from '../components/StatusBadge';
 
 function Dashboard() {
   const [stats, setStats] = useState(null);
+  const [deptData, setDeptData] = useState(null);
   const [recent, setRecent] = useState([]);
   const [health, setHealth] = useState(null);
 
   useEffect(() => {
-    api.getStats().then(setStats).catch(() => {});
+    api.getStats().then(d => { setStats(d.stats || d); setDeptData(d.byDepartment || {}); }).catch(() => {});
     api.getEncounters('limit=5').then(d => setRecent(d.encounters || [])).catch(() => {});
     api.getHealth().then(setHealth).catch(() => setHealth({ status: 'unreachable' }));
   }, []);
@@ -28,19 +29,27 @@ function Dashboard() {
         </div>
         <div className="stat-card accent-blue">
           <span className="stat-label">Checked In</span>
-          <span className="stat-value">{stats ? (stats.byStatus['checked-in'] || 0) : '—'}</span>
+          <span className="stat-value">{stats ? (stats['checked-in'] || 0) : '—'}</span>
         </div>
         <div className="stat-card accent-amber">
           <span className="stat-label">In Progress</span>
-          <span className="stat-value">{stats ? (stats.byStatus['in-progress'] || 0) : '—'}</span>
+          <span className="stat-value">{stats ? (stats['in-progress'] || 0) : '—'}</span>
         </div>
         <div className="stat-card accent-green">
           <span className="stat-label">Completed</span>
-          <span className="stat-value">{stats ? (stats.byStatus['completed'] || 0) : '—'}</span>
+          <span className="stat-value">{stats ? (stats['completed'] || 0) : '—'}</span>
         </div>
         <div className="stat-card accent-purple">
           <span className="stat-label">Discharged</span>
-          <span className="stat-value">{stats ? (stats.byStatus['discharged'] || 0) : '—'}</span>
+          <span className="stat-value">{stats ? (stats['discharged'] || 0) : '—'}</span>
+        </div>
+        <div className="stat-card accent-teal">
+          <span className="stat-label">Billed</span>
+          <span className="stat-value">{stats ? (stats['billed'] || 0) : '—'}</span>
+        </div>
+        <div className="stat-card accent-slate">
+          <span className="stat-label">Closed</span>
+          <span className="stat-value">{stats ? (stats['closed'] || 0) : '—'}</span>
         </div>
         <div className={`stat-card ${health && health.status === 'healthy' ? 'accent-green' : 'accent-red'}`}>
           <span className="stat-label">API Health</span>
@@ -48,13 +57,13 @@ function Dashboard() {
         </div>
       </div>
 
-      {stats && stats.total > 0 && (
+      {stats && stats.total > 0 && deptData && Object.keys(deptData).length > 0 && (
         <div className="panel">
           <div className="panel-header">
             <h2>Department Breakdown</h2>
           </div>
           <div className="dept-bars">
-            {Object.entries(stats.byDepartment).map(([dept, count]) => (
+            {Object.entries(deptData).map(([dept, count]) => (
               <div key={dept} className="dept-row">
                 <span className="dept-name">{dept}</span>
                 <div className="dept-bar-track">
