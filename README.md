@@ -4,13 +4,6 @@ A healthcare encounter lifecycle platform deployed through a fully automated CI/
 
 ---
 
-## 🚀 Live Demo
-
-- 🌐 Frontend: http://<YOUR-ALB-DNS>
-- ❤️ API Health: http://<YOUR-ALB-DNS>/health
-
----
-
 ## 🧠 Problem This Solves
 
 In healthcare environments, every patient visit must be tracked across:
