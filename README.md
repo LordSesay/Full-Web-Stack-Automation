@@ -32,25 +32,6 @@ This platform introduces a:
 
 ---
 
-## 🏗️ Architecture Overview
-
-User (Clinic / Staff)
-↓
-Application Load Balancer (ALB)
-↓
-┌───────────────┬────────────────┐
-│ │ │
-Frontend (React) Backend (Node API)
-│ │
-└──────→ ECS (Fargate) ←──┘
-↓
-(Future: DynamoDB)
-
-CI/CD Pipeline:
-GitHub → Jenkins (EC2) → Docker → ECR → ECS
-
----
-
 ## ⚙️ CI/CD Pipeline (Production-Style)
 
 This system uses a **fully automated deployment pipeline**:
