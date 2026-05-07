@@ -31,6 +31,12 @@ resource "aws_ecs_task_definition" "app" {
           value = "http://${aws_lb.main.dns_name}"
         }
       ]
+      secrets = [
+        {
+          name      = "DATABASE_URL"
+          valueFrom = aws_secretsmanager_secret.database_url.arn
+        }
+      ]
       logConfiguration = {
         logDriver = "awslogs"
         options = {

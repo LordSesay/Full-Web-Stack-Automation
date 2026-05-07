@@ -14,6 +14,11 @@ pipeline {
       defaultValue: '767398054553',
       description: 'AWS account ID for ECR and ECS deployment'
     )
+    string(
+      name: 'JENKINS_SG_ID',
+      defaultValue: 'sg-xxxxxxxxxxxx',
+      description: 'Jenkins EC2 security group ID for RDS migration access'
+    )
     booleanParam(
       name: 'RUN_TERRAFORM_PLAN',
       defaultValue: true,
@@ -107,11 +112,34 @@ pipeline {
         expression { return params.RUN_TERRAFORM_PLAN }
       }
       steps {
-        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
-          dir("${INFRA_DIR}") {
-            sh 'terraform init'
-            sh 'terraform validate'
-            sh 'terraform plan -no-color'
+        withCredentials([
+          [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials'],
+          string(credentialsId: 'db-password', variable: 'TF_VAR_db_password')
+        ]) {
+          withEnv(["TF_VAR_jenkins_sg_id=${params.JENKINS_SG_ID}"]) {
+            dir("${INFRA_DIR}") {
+              sh 'terraform init'
+              sh 'terraform validate'
+              sh 'terraform plan -no-color'
+            }
+          }
+        }
+      }
+    }
+
+    stage('Terraform Apply') {
+      when {
+        expression { return params.DEPLOY }
+      }
+      steps {
+        withCredentials([
+          [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials'],
+          string(credentialsId: 'db-password', variable: 'TF_VAR_db_password')
+        ]) {
+          withEnv(["TF_VAR_jenkins_sg_id=${params.JENKINS_SG_ID}"]) {
+            dir("${INFRA_DIR}") {
+              sh 'terraform apply -auto-approve -no-color'
+            }
           }
         }
       }
@@ -158,6 +186,30 @@ pipeline {
           docker push ${ECR_FRONTEND}:latest
           docker push ${ECR_FRONTEND}:${IMAGE_TAG}
         '''
+      }
+    }
+
+    stage('Run Database Migrations') {
+      when {
+        expression { return params.DEPLOY }
+      }
+      steps {
+        withCredentials([
+          [$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials'],
+          string(credentialsId: 'db-password', variable: 'DB_PASSWORD')
+        ]) {
+          dir("${INFRA_DIR}") {
+            script {
+              env.RDS_ENDPOINT = sh(script: 'terraform output -raw rds_endpoint', returnStdout: true).trim()
+            }
+          }
+          dir("${BACKEND_DIR}") {
+            sh '''
+              export DATABASE_URL="postgresql://encounters_admin:${DB_PASSWORD}@${RDS_ENDPOINT}/encounters"
+              npm run migrate
+            '''
+          }
+        }
       }
     }
 

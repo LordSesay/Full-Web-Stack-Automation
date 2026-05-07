@@ -32,3 +32,24 @@ variable "frontend_container_port" {
   type    = number
   default = 80
 }
+
+variable "db_username" {
+  type      = string
+  default   = "encounters_admin"
+  sensitive = true
+}
+
+variable "db_password" {
+  type      = string
+  sensitive = true
+}
+
+variable "db_name" {
+  type    = string
+  default = "encounters"
+}
+
+variable "jenkins_sg_id" {
+  type        = string
+  description = "Security group ID of the Jenkins EC2 instance (for migration access to RDS)"
+}
