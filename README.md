@@ -145,22 +145,6 @@ Built by **Malcolm Sesay**
 
 ---
 
-## 🧩 Challenges & Solutions
-
-### 🚫 ECS failed to pull images
-→ Fixed with proper ECR tagging + versioned deployment
-
-### 🚫 Jenkins Docker permission errors
-→ Fixed Docker socket configuration
-
-### 🚫 CI builds failing on warnings
-→ Enforced production-grade build standards
-
-### 🚫 Frontend/backend routing issues
-→ Fixed with ALB path-based routing + relative API paths
-
----
-
 ## 💼 Business Value
 
 - 🚀 Faster deployments (minutes vs hours)
