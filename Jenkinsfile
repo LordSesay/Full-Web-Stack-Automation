@@ -25,11 +25,6 @@ pipeline {
       description: 'Image tag to promote (prod only — skips build, deploys existing image)'
     )
     booleanParam(
-      name: 'RUN_TERRAFORM',
-      defaultValue: true,
-      description: 'Run Terraform init/plan/apply for infrastructure'
-    )
-    booleanParam(
       name: 'DEPLOY',
       defaultValue: true,
       description: 'Build/push images and deploy to ECS'
@@ -42,7 +37,6 @@ pipeline {
 
     BACKEND_DIR    = 'apps/backend'
     FRONTEND_DIR   = 'apps/frontend'
-    INFRA_DIR      = 'infra'
 
     APP_NAME       = 'fullstack-automation'
     ENV            = "${params.ENVIRONMENT}"
@@ -129,46 +123,6 @@ pipeline {
           docker build -t ${APP_NAME}-backend:${IMAGE_TAG} ./${BACKEND_DIR}
           docker build -t ${APP_NAME}-frontend:${IMAGE_TAG} ./${FRONTEND_DIR}
         """
-      }
-    }
-
-    // ─── TERRAFORM ───
-
-    stage('Terraform Plan') {
-      when {
-        expression { return params.RUN_TERRAFORM }
-      }
-      steps {
-        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
-          dir("${INFRA_DIR}") {
-            sh """
-              terraform init \
-                -backend-config="key=env/${ENV}/terraform.tfstate" \
-                -reconfigure
-
-              terraform validate
-
-              terraform plan \
-                -var-file=environments/${ENV}.tfvars \
-                -var="db_password=\${DB_PASSWORD}" \
-                -out=tfplan \
-                -no-color
-            """
-          }
-        }
-      }
-    }
-
-    stage('Terraform Apply') {
-      when {
-        expression { return params.RUN_TERRAFORM }
-      }
-      steps {
-        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
-          dir("${INFRA_DIR}") {
-            sh 'terraform apply -auto-approve tfplan'
-          }
-        }
       }
     }
 
