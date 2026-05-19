@@ -33,7 +33,9 @@ services:
     build:
       context: ./apps/frontend
       args:
-        REACT_APP_API_URL: http://localhost:8080/api/id
+        # Local dev: points to backend container via host port
+        # Production (ECS/ALB): uses relative /api/ path (set in Dockerfile/CI)
+        REACT_APP_API_URL: http://localhost:8080/api
     container_name: fullstack-frontend
     ports:
       - "3000:80"
