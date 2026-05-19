@@ -11,8 +11,8 @@ pipeline {
   parameters {
     string(
       name: 'AWS_ACCOUNT_ID',
-      defaultValue: '767398054553',
-      description: 'AWS account ID for ECR and ECS deployment'
+      defaultValue: '',
+      description: 'AWS account ID for ECR and ECS deployment (auto-detected if empty)'
     )
     choice(
       name: 'ENVIRONMENT',
@@ -59,12 +59,16 @@ pipeline {
   stages {
     stage('Validate Inputs') {
       steps {
-        script {
-          if (!params.AWS_ACCOUNT_ID?.trim()) {
-            error('AWS_ACCOUNT_ID parameter is empty.')
-          }
-          if (params.ENVIRONMENT == 'prod' && params.PROMOTE_TAG?.trim()) {
-            echo "PROD PROMOTION: deploying existing tag ${params.PROMOTE_TAG} (skipping build)"
+        withCredentials([[$class: 'AmazonWebServicesCredentialsBinding', credentialsId: 'aws-credentials']]) {
+          script {
+            if (!params.AWS_ACCOUNT_ID?.trim()) {
+              env.AWS_ACCOUNT_ID = sh(script: 'aws sts get-caller-identity --query Account --output text', returnStdout: true).trim()
+              env.ECR_BACKEND  = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com/${env.APP_NAME}-${env.ENV}-backend"
+              env.ECR_FRONTEND = "${env.AWS_ACCOUNT_ID}.dkr.ecr.${env.AWS_REGION}.amazonaws.com/${env.APP_NAME}-${env.ENV}-frontend"
+            }
+            if (params.ENVIRONMENT == 'prod' && params.PROMOTE_TAG?.trim()) {
+              echo "PROD PROMOTION: deploying existing tag ${params.PROMOTE_TAG} (skipping build)"
+            }
           }
         }
       }
