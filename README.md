@@ -117,13 +117,24 @@ Task Definition Revision Deployment
 
 ---
 
+## ✅ Infrastructure Implemented
+
+- [x] RDS (PostgreSQL) persistence layer
+- [x] Secrets Manager for credential management
+- [x] ECS Fargate orchestration
+- [x] ALB with path-based routing
+- [x] Route 53 DNS configuration
+- [x] IAM roles and policies
+- [x] VPC with public/private subnets
+- [x] ECR image repositories
+- [x] Multi-environment support (dev/staging/prod)
+
 ## 🔮 Future Enhancements
 
-- [ ] DynamoDB persistence layer
 - [ ] Authentication & RBAC
 - [ ] CI/CD rollback automation
 - [ ] Monitoring (CloudWatch / Prometheus)
-- [ ] Multi-environment deployments (dev/staging/prod)
+- [ ] Blue/green deployments
 
 ---
 
